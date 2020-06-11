@@ -3,7 +3,7 @@
 
 我们创建了一个 [白黑白黑] 4*1像素的纹理
 如图  
-![Alt text](./1591846731942.png)
+![render](https://github.com/blizz2night/TestInterpolation/blob/master/cover.jpg)
 我们考察$X$轴, 记归一化后坐标为$x_{norm}\in[0,1]$, 归一化前$x\in[0,4]$
 考察第二个黑色像素点,
 1. 纹理过滤类型为最近邻(*NEAREST*)时,
