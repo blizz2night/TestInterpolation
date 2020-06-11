@@ -9,6 +9,5 @@ varying vec2 v_TexCoord;
 uniform float u_Progress;
 
 void main() {
-    gl_FragColor = texture2D(u_TextureUnit, vec2(u_Progress,v_TexCoord.y));
-
+    gl_FragColor = texture2D(u_TextureUnit, vec2(u_Progress, v_TexCoord.y));
 }
