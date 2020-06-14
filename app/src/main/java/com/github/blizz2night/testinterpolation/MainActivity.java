@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
@@ -57,6 +58,14 @@ public class MainActivity extends AppCompatActivity {
     private int a_SamplerPosition;
     private int a_SamplerTexCoord;
     private int u_SamplerTextureUnit;
+    private Bitmap mPitchBitmap;
+    private int mPitchTex;
+    private int u_Border;
+    private String mPitchFsh;
+    private int mPitchProgram;
+    private int a_PitchPosition;
+    private int a_PitchTexCoord;
+    private int u_PitchTextureUnit;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,6 +79,8 @@ public class MainActivity extends AppCompatActivity {
         mFsh = Utils.getStringFromFileInAssets(this, "frag_shader.glsl");
         mVsh = Utils.getStringFromFileInAssets(this, "vertex_shader.glsl");
         mFsh2 = Utils.getStringFromFileInAssets(this, "frag_shader2.glsl");
+        mPitchFsh = Utils.getStringFromFileInAssets(this, "pitch_frag_shader.glsl");
+        mPitchBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.grid3x1);
         mPreview.setEGLContextClientVersion(2);
         mPreview.setRenderer(new MyRender());
         mPreview.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
@@ -123,11 +134,10 @@ public class MainActivity extends AppCompatActivity {
                 pixels[3] = Color.BLACK;
 
                 bitmap.setPixels(pixels, 0, width, 0, 0, width, height);
-//                Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.ic_launcher);
                 mBWBitmap = bitmap;
             }
 
-            int[] tex = new int[2];
+            int[] tex = new int[3];
             GLES20.glGenTextures(tex.length, tex, 0);
             mLinearTex = tex[0];
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mLinearTex);
@@ -145,6 +155,14 @@ public class MainActivity extends AppCompatActivity {
             GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D,GLES20.GL_TEXTURE_MIN_FILTER,GLES20.GL_NEAREST);
             GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D,GLES20.GL_TEXTURE_MAG_FILTER,GLES20.GL_NEAREST);
 
+            mPitchTex = tex[2];
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mPitchTex);
+            GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, mPitchBitmap, 0);
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D,GLES20.GL_TEXTURE_WRAP_S,GLES20.GL_CLAMP_TO_EDGE);
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D,GLES20.GL_TEXTURE_WRAP_T,GLES20.GL_CLAMP_TO_EDGE);
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D,GLES20.GL_TEXTURE_MIN_FILTER,GLES20.GL_LINEAR);
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D,GLES20.GL_TEXTURE_MAG_FILTER,GLES20.GL_LINEAR);
+
             mTexProgram = Utils.loadProgram(mVsh, mFsh);
             a_Position = GLES20.glGetAttribLocation(mTexProgram, "a_Position");
             a_TexCoord = GLES20.glGetAttribLocation(mTexProgram, "a_TexCoord");
@@ -155,6 +173,12 @@ public class MainActivity extends AppCompatActivity {
             a_SamplerTexCoord = GLES20.glGetAttribLocation(mSamplerProgram, "a_TexCoord");
             u_Progress = GLES20.glGetUniformLocation(mSamplerProgram, "u_Progress");
             u_SamplerTextureUnit = GLES20.glGetUniformLocation(mSamplerProgram, "u_TextureUnit");
+
+            mPitchProgram = Utils.loadProgram(mVsh, mPitchFsh);
+            a_PitchPosition = GLES20.glGetAttribLocation(mPitchProgram, "a_Position");
+            a_PitchTexCoord = GLES20.glGetAttribLocation(mPitchProgram, "a_TexCoord");
+            u_Border = GLES20.glGetUniformLocation(mPitchProgram, "u_Border");
+            u_PitchTextureUnit = GLES20.glGetUniformLocation(mPitchProgram, "u_TextureUnit");
         }
 
         @Override
@@ -202,6 +226,27 @@ public class MainActivity extends AppCompatActivity {
             GLES20.glUniform1i(u_SamplerTextureUnit, 0);
             GLES20.glUniform1f(u_Progress, mProgress);
             GLES20.glViewport(0, mHeight * 3 / 4, mWidth, mHeight / 4);
+            GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, /* first= */ 0, /* offset= */ 4);
+
+
+            //画中间的灰度格子,处理边界
+            GLES20.glUseProgram(mPitchProgram);
+            mVertexBuffer.position(0);
+            GLES20.glVertexAttribPointer(a_PitchPosition, 2, GLES20.GL_FLOAT, false, 4 * 4, mVertexBuffer);
+            GLES20.glEnableVertexAttribArray(a_PitchPosition);
+            mVertexBuffer.position(2);
+            GLES20.glVertexAttribPointer(a_PitchTexCoord, 2, GLES20.GL_FLOAT, false, 4 * 4, mVertexBuffer);
+            GLES20.glEnableVertexAttribArray(a_PitchTexCoord);
+
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mPitchTex);
+            GLES20.glUniform1i(u_PitchTextureUnit, 0);
+            GLES20.glUniform1f(u_Border, 0.f);
+            GLES20.glViewport(0, 0, mWidth, mHeight / 8);
+            GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, /* first= */ 0, /* offset= */ 4);
+            //画中间的灰度格子,不处理边界
+            GLES20.glUniform1i(u_PitchTextureUnit, 0);
+            GLES20.glUniform1f(u_Border, 1.f);
+            GLES20.glViewport(0, mHeight / 8, mWidth, mHeight / 8);
             GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, /* first= */ 0, /* offset= */ 4);
 
             mPixels.position(0);
